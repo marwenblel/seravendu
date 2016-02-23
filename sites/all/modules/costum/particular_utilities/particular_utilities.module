@@ -1,0 +1,28 @@
+<?php
+/**
+ * @file: particular_utilities.module
+ */
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ * Add extra visibility depending on our permissions.
+ */
+function particular_utilities_form_user_profile_form_alter(&$form, &$form_state)
+{
+
+    global $user;
+    $account = $form['#user'];
+
+    /* Prevent particular to upload image to his own account */
+    /* Verify that connected user have particular role */
+    if (in_array(PARTICULAR_ROLE, $user->roles)) {
+        // Verify that account user to edit bellow to particular.
+        if (($user->uid == $account->uid) ) {
+            $form['picture']['#access'] = FALSE;
+        }
+
+    }
+
+}
+
+

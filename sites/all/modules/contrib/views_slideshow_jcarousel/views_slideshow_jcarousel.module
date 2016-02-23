@@ -1,0 +1,453 @@
+<?php
+define('JCAROUSEL_LIBRARY_NAME','jcarousel');
+/**
+ * Implements hook_theme().
+ */
+
+function views_slideshow_jcarousel_theme($existing, $type, $theme, $path) {
+  return array(
+    // declare a teplate suggestion that will allow for the main slideshow template to be overridden
+    // by this module. this will ensure that our pager and main frame templates are allowed to work together
+    // with the proper markup syntax
+    'views_slideshow__jcarousel'=> array(
+      'variables' => array('view' => NULL, 'settings' => array(), 'rows' => array(), 'title' => ''),
+      'template' => 'theme/views-slideshow--jcarousel',
+      'file' => 'theme/views_slideshow_jcarousel.theme.inc',
+    ),
+
+    'views_slideshow_jcarousel_main_frame' => array(
+      'variables' => array('vss_id' => NULL, 'view' => NULL, 'settings' => NULL, 'rows' => NULL),
+      'template' => 'theme/views-slideshow-jcarousel-main-frame',
+      'pattern' => 'views_slideshow_jcarousel_main_frame__',
+    ),
+    'views_slideshow_jcarousel_main_frame_row' => array(
+      'variables' => array('vss_id' => NULL, 'items' => NULL, 'count' => NULL, 'view' => NULL),
+      'template' => 'theme/views-slideshow-jcarousel-main-frame-row',
+      'pattern' => 'views_slideshow_jcarousel_main_frame_row__',
+    ),
+    'views_slideshow_jcarousel_main_frame_row_item' => array(
+      'variables' => array('item' => NULL, 'item_count' => NULL, 'count' => NULL, 'view' => NULL, 'length' => NULL),
+      'template' => 'theme/views-slideshow-jcarousel-main-frame-row-item',
+      'views_slideshow_jcarousel_main_frame_row_item__',
+    ),
+
+
+
+    'views_slideshow_jcarousel_pager' => array(
+      'variables' => array('vss_id' => NULL, 'view' => NULL, 'settings' => array(), 'location' => NULL, 'attributes' => array()),
+      'template' => 'views-slideshow-jcarousel-pager',
+      'path' => $path . '/theme',
+    ),
+    'views_slideshow_jcarousel_pager_field' => array(
+      'variables' => array('view' => NULL, 'field' => NULL, 'count' => NULL),
+      'template' => 'views-slideshow-jcarousel-pager-field',
+      'file' => 'views_slideshow_jcarousel.theme.inc',
+      'path' => $path . '/theme',
+    ),
+    'views_slideshow_jcarousel_pager_item' => array(
+      'variables' => array('vss_id' => NULL, 'item' => NULL, 'count' => NULL, 'location' => NULL),
+      'template' => 'views-slideshow-jcarousel-pager-item',
+      'path' => $path . '/theme',
+    ),
+  );
+}
+
+function views_slideshow_jcarousel_views_slideshow_slideshow_info() {
+  $options = array(
+    'views_slideshow_jcarousel' => array(
+      'name' => t('jCarousel'),
+      'accepts' => array(
+        'goToSlide',
+        'nextSlide',
+        'pause',
+        'play',
+        'previousSlide',
+      ),
+      'calls' => array(
+        'transitionBegin',
+        'transitionEnd',
+        'goToSlide',
+        'pause',
+        'play',
+        'nextSlide',
+        'previousSlide',
+      ),
+    ),
+  );
+  return $options;
+}
+
+/**
+ * @return array
+ * Declare this module's path as a place to look for library definitions
+ */
+function views_slideshow_jcarousel_libraries_info_file_paths() {
+  return array(drupal_get_path('module', 'views_slideshow_jcarousel'));
+}
+
+/**
+ * Gets the path to the jCarousel library.
+ *
+ * @return
+ *   The path to the jCarousel library js file, or FALSE if not found.
+ */
+function _views_slideshow_jcarousel_library_path() {
+  $lib=libraries_load(JCAROUSEL_LIBRARY_NAME);
+  $jcarousel_path = libraries_get_path(JCAROUSEL_LIBRARY_NAME);
+
+  if (!empty($jcarousel_path)) {
+    // Attempt to use minified version of jCarousel plugin.
+    if (file_exists($jcarousel_path . '/dist/jquery.jcarousel.min.js')) {
+      $jcarousel_path .= '/dist/jquery.jcarousel.min.js';
+    }
+    // Otherwise use non-minified version if available.
+    elseif (file_exists($jcarousel_path . '/dist/jquery.jcarousel.js')) {
+      $jcarousel_path .= '/dist/jquery.jcarousel.js';
+    }
+    else {
+      $jcarousel_path = FALSE;
+    }
+  }
+  else {
+    $jcarousel_path = FALSE;
+  }
+
+  return $jcarousel_path;
+}
+
+/**
+ * @todo: remove this function
+ * this doesn't seem to be being used anywhere
+ */
+function views_slideshow_jcarousel_views_slideshow_js_method_register() {
+  return array(
+    'viewsSlideshowJcarouselPager',
+  );
+}
+
+/**
+ * Implements hook_views_slideshow_info().
+ */
+function views_slideshow_jcarousel_views_slideshow_widget_pager_info($view) {
+  $settings = array();
+  // Settings for fields.
+  // First verfiy that the view is using fields.
+  if ($view->row_plugin->uses_fields()) {
+    $settings = array(
+      'views_slideshow_jcarousel_pager' => array(
+        'name' => t('jCarousel Pager (fields)'),
+      ),
+    );
+  }
+
+  return $settings;
+}
+
+/**
+ * Implements hook_ctools_plugin_type().
+ */
+function views_slideshow_jcarousel_ctools_plugin_type() {
+  return array(
+    // Renderer plugins control the display of sets of items.
+    'skins' => array(
+      'cache' => TRUE,
+      'use hooks' => TRUE,
+      'classes' => array('handler'),
+    ),
+  );
+}
+
+/*
+ctools extension of a skin renderer
+*/
+function views_slideshow_jcarousel_views_slideshow_jcarousel_skins(){
+  $skins=array(
+    'tango'=>array(
+      'class' => 'tango', // this is a CSS class, not a php class
+      'name'=>t("Tango"),
+      'path'=>drupal_get_path('module','views_slideshow_jcarousel')."/skins/tango",
+      'stylesheets'=>array(
+        drupal_get_path('module','views_slideshow_jcarousel')."/skins/tango/skin.css"
+      )
+    ),
+    'ie7'=>array(
+      'class' => 'ie7', // this is a CSS class, not a php class
+      'name'=>t("IE 7"),
+      'path'=>drupal_get_path('module','views_slideshow_jcarousel')."/skins/ie7",
+      'stylesheets'=>array(
+        drupal_get_path('module','views_slideshow_jcarousel')."/skins/ie7/skin.css"
+      )
+    )
+  );
+  return $skins;
+}
+
+/**
+ * views_slideshow wants to know about the skins too (no processing required!)
+ **/
+function views_slideshow_jcarousel_views_slideshow_skin_info(){
+  $skins=ctools_get_plugins('views_slideshow_jcarousel','skins');
+  return $skins;
+}
+
+// this needs to be moved
+
+/**
+ * Implements hook_views_slideshow_option_definition().
+ * todo: this should be moved to its own display.inc file
+ */
+function views_slideshow_jcarousel_views_slideshow_option_definition() {
+  //todo: get rid of these top/bottom loops
+
+  $locations = array('top', 'bottom');
+  // Defaults for the pager widget.
+  foreach ($locations as $location) {
+    $options['widgets']['contains'][$location]['contains']['views_slideshow_pager']['contains']['views_slideshow_jcarousel_pager_fields'] = array('default' => array());
+    $options['widgets']['contains'][$location]['contains']['views_slideshow_pager']['contains']['views_slideshow_jcarousel_pager_move_on_change'] = array('default' => 0);
+    $options['widgets']['contains'][$location]['contains']['views_slideshow_pager']['contains']['views_slideshow_jcarousel_pager_update_on_prev_next'] = array('default' => 0);
+    $options['widgets']['contains'][$location]['contains']['views_slideshow_pager']['contains']['views_slideshow_jcarousel_pager_skin'] = array('default' => 'tango');
+    $options['widgets']['contains'][$location]['contains']['views_slideshow_pager']['contains']['views_slideshow_jcarousel_pager_orientation'] = array('default' => FALSE);
+    $options['widgets']['contains'][$location]['contains']['views_slideshow_pager']['contains']['views_slideshow_jcarousel_pager_scroll'] = array('default' => 3);
+    $options['widgets']['contains'][$location]['contains']['views_slideshow_pager']['contains']['views_slideshow_jcarousel_pager_visible'] = array('default' => 3);
+    $options['widgets']['contains'][$location]['contains']['views_slideshow_pager']['contains']['views_slideshow_jcarousel_pager_wrap'] = array('default' => NULL);
+    $options['widgets']['contains'][$location]['contains']['views_slideshow_pager']['contains']['views_slideshow_jcarousel_pager_animation'] = array('default' => 'fast');
+  }
+
+  $options['views_slideshow_jcarousel'] = array(
+      // existing options:
+    'visible' => array('default' => 1),
+    'animation' => array('default' => 1000),
+    'wrap' => array('default' => false),
+    // got these from views_slideshow_cycle
+    // Transition
+    'effect' => array('default' => 'fade'),
+    'transition_advanced' => array('default' => 0),
+    'timeout' => array('default' => 5000),
+    'speed' => array('default' => 700), //normal
+    'delay' => array('default' => 0),
+    'sync' => array('default' => 1),
+    'random' => array('default' => 0),
+
+    // Action
+    'pause' => array('default' => 1),
+    'pause_on_click' => array('default' => 0),
+    'action_advanced' => array('default' => 0),
+    'start_paused' => array('default', 0),
+    'remember_slide' => array('default' => 0),
+    'remember_slide_days' => array('default' => 1),
+    'pause_in_middle' => array('default' => 0),
+    'pause_when_hidden' => array('default' => 0),
+    'pause_when_hidden_type' => array('default' => 'full'),
+    'amount_allowed_visible' => array('default' => ''),
+    'nowrap' => array('default' => 0),
+    'fixed_height' => array('default' => 1),
+    'items_per_slide' => array('default' => 1),
+    'wait_for_image_load' => array('default' => 1),
+    'wait_for_image_load_timeout' => array('default' => 3000),
+
+    // Internet Explorer Tweaks
+    'cleartype' => array('default' => 'true'),
+    'cleartypenobg' => array('default' => 'false'),
+
+    // Advanced
+    'advanced_options' => array('default' => '{}'),
+  );
+  return $options;
+}
+
+/**
+ * Implementation [widget-type]_views_slideshow_pager_form_options
+ * these are the options for the pager to render as a jcarousel slideshow. they should also be
+ * used for rendering the output as a slideshow
+ */
+function views_slideshow_jcarousel_views_slideshow_slideshow_type_form(&$form, &$form_state, &$view){
+  $defaults=$view->options;
+  // skins will be implemented as ctools renderer plugins
+
+  // Set the number of visible items.
+  $form['views_slideshow_jcarousel']['visible'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number of Visible Items'),
+    '#default_value' => $defaults['views_slideshow_jcarousel']['visible'],
+    '#description' => t('Set the number of pager items that are visible at a single time.'),
+    '#size' => 10,
+  );
+
+  // animation speed
+  $form['views_slideshow_jcarousel']['animation'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Speed of the transition'),
+    '#default_value' => $defaults['views_slideshow_jcarousel']['animation'],
+    '#description' => t('Options are fast, slow or a number in milliseconds.'),
+    '#size' => '10',
+  );
+
+  // Wrap the carousel
+  $form['views_slideshow_jcarousel']['wrap'] = array(
+    '#type' => 'select',
+    '#title' => t('Wrapping'),
+    '#options' => array(
+      NULL => 'Disabled',
+      'circular' => 'Circular',
+      'first' => 'First',
+      'last' => 'Last',
+      'both' => 'Both',
+    ),
+    '#default_value' => $defaults['views_slideshow_jcarousel']['wrap'],
+    '#description' => t('Wrap the carousel.'),
+  );
+}
+
+function views_slideshow_jcarousel_pager_views_slideshow_widget_pager_form_options(&$form, &$form_state, &$view, $defaults, $dependency) {
+  // Check for the library, prompt as necessary
+  if (!($jq_path = _views_slideshow_jcarousel_library_path())) {
+    drupal_set_message(t('The jCarousel library was not found. Please extract the jCarousel package to sites/all/libraries/'.JCAROUSEL_LIBRARY_NAME.', so that the javascript files are located at sites/all/libraries/'.JCAROUSEL_LIBRARY_NAME.'/dist. You can download the jCarousel package at !url', array('!url' => l('http://sorgalla.com/jcarousel/', 'http://sorgalla.com/jcarousel/',  array('attributes' => array('target' => '_blank'))))));
+//    $form['views_slideshow_jcarousel_not_found'] = array(
+//      '#markup' => '<div class="messages error">' . t('The jCarousel library was not found. Please extract the jCarousel package to sites/all/libraries/'.JCAROUSEL_LIBRARY_NAME.', so that the javascript files are located at sites/all/libraries/'.JCAROUSEL_LIBRARY_NAME.'/dist. You can download the jCarousel package at !url', array('!url' => l('http://sorgalla.com/jcarousel/', 'http://sorgalla.com/jcarousel/',  array('attributes' => array('target' => '_blank'))))) . '</div>',
+//    );
+  }
+  // Settings for fields pager.
+  $options = array();
+  // Get each field and it's name.
+  foreach ($view->display->handler->get_handlers('field') as $field => $handler) {
+    $options[$field] = $handler->ui_name();
+  }
+  // Add ability to choose which fields to show in the pager.
+  $form['views_slideshow_jcarousel']['pager_fields'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Pager fields'),
+    '#options' => $options,
+    '#default_value' => $defaults['views_slideshow_jcarousel']['pager_fields'],
+    '#description' => t("Choose the fields that will appear in the pager."),
+    '#states'=>array(
+      'visible'=>array(
+        ':input[name="style_options[widgets][top][views_slideshow_pager][enable]"]'=>array('checked'=>true),
+      )
+    ),
+  );
+
+  // Add field to see if they would like the carousel to activate the pager item
+  // on slide change.
+  $form['views_slideshow_jcarousel']['pager_move_on_change'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Move To Active Pager Item On Slide Change'),
+    '#default_value' => $defaults['views_slideshow_jcarousel']['pager_move_on_change'],
+    '#description' => t('When the slide changes move the carousel to the active pager item.'),
+  );
+
+	$form['views_slideshow_jcarousel']['pager_update_on_prev_next'] = array(
+		'#type' => 'checkbox',
+		'#title' => t('Make Previous/Next Buttons Update the Current Slide'),
+		'#default_value' => $defaults['views_slideshow_jcarousel']['pager_update_on_prev_next'],
+		'#description' => t('Cycle the slideshow forward or backwards when the pager previous/next buttons are clicked'),
+	);
+
+
+  // skins are now implemented as ctools renderer plugins
+  $carousel_skins=ctools_get_plugins("views_slideshow_jcarousel","skins");
+  foreach($carousel_skins as $key=>$skin){
+    $skins[$key]=$skin['name'];
+  }
+
+  // Set the skin.
+  $form['views_slideshow_jcarousel']['pager_skin'] = array(
+    '#type' => 'select',
+    '#title' => t('jCarousel Skin'),
+    '#options' => $skins,
+    '#default_value' => $defaults['views_slideshow_jcarousel']['pager_skin'],
+    '#description' => t('Choose the skin for your carousel.  You can add more by placing your skin in the jcarousel library directory.'),
+  );
+
+  // Set orientation of the pager.
+  $form['views_slideshow_jcarousel']['pager_orientation'] = array(
+    '#type' => 'select',
+    '#title' => t('Orientation of the Pager'),
+    '#options' => array(
+      FALSE => 'Horizontal',
+      TRUE => 'Vertical',
+    ),
+    '#default_value' => $defaults['views_slideshow_jcarousel']['pager_orientation'],
+    '#description' => t('Should the pager be horizontal or vertical.'),
+  );
+
+  // Set the number of visible items.
+  $form['views_slideshow_jcarousel']['pager_visible'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number of Visible Pager Items'),
+    '#default_value' => $defaults['views_slideshow_jcarousel']['pager_visible'],
+    '#description' => t('Set the number of pager items that are visible at a single time.'),
+    '#size' => 10,
+  );
+
+  // Set the number of items to scroll by.
+  $form['views_slideshow_jcarousel']['pager_scroll'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Scroll'),
+    '#default_value' => $defaults['views_slideshow_jcarousel']['pager_scroll'],
+    '#description' => t('The number of items to scroll by.'),
+    '#size' => 10,
+  );
+
+  // animation speed
+  $form['views_slideshow_jcarousel']['pager_animation'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Speed of the transition'),
+    '#default_value' => $defaults['views_slideshow_jcarousel']['pager_animation'],
+    '#description' => t('Options are fast, slow or a number in milliseconds.'),
+    '#size' => '10',
+  );
+
+  // Wrap the carousel
+  $form['views_slideshow_jcarousel']['pager_wrap'] = array(
+    '#type' => 'select',
+    '#title' => t('Wrapping'),
+    '#options' => array(
+      NULL => 'Disabled',
+      'circular' => 'Circular',
+      'first' => 'First',
+      'last' => 'Last',
+      'both' => 'Both',
+    ),
+    '#default_value' => $defaults['views_slideshow_jcarousel_pager_wrap'],
+    '#description' => t('Wrap the carousel.'),
+  );
+}
+
+/**
+ * Need to have preprocess functions here because drupal doesn't cache them
+ * correctly in the theme.inc file.
+ *
+ * If you would like to override the preprocess functions make sure to look at
+ * the associated function in theme.inc.
+ */
+
+// Trying to make sure the theme.inc get's loaded.
+include_once 'theme/views_slideshow_jcarousel.theme.inc';
+
+function template_preprocess_views_slideshow_jcarousel_pager(&$vars) {
+  _views_slideshow_jcarousel_preprocess_pager($vars);
+}
+
+function template_preprocess_views_slideshow_jcarousel_pager_item(&$vars) {
+  _views_slideshow_jcarousel_preprocess_pager_item($vars);
+}
+
+
+function template_preprocess_views_slideshow_jcarousel_main_frame(&$vars) {
+  _views_slideshow_jcarousel_preprocess_views_slideshow_jcarousel_main_frame($vars);
+}
+
+function template_preprocess_views_slideshow_jcarousel_main_frame_row(&$vars) {
+  _views_slideshow_jcarousel_preprocess_views_slideshow_jcarousel_main_frame_row($vars);
+}
+
+function template_preprocess_views_slideshow_jcarousel_main_frame_row_item(&$vars) {
+  _views_slideshow_jcarousel_preprocess_views_slideshow_jcarousel_main_frame_row_item($vars);
+}
+
+// add the jcarousel template suggestion to the views_slideshow template.
+function views_slideshow_jcarousel_preprocess_views_slideshow(&$vars){
+  if($vars['options']['slideshow_type'] == 'views_slideshow_jcarousel') {
+    $vars['theme_hook_suggestions'][] = "views_slideshow__jcarousel";
+  }
+}

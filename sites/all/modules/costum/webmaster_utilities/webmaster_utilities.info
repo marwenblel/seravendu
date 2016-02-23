@@ -1,0 +1,7 @@
+name = Webmaster Utilities
+description = A module to set up the webmaster utilities such as navigation links...
+core = 7.x
+package = Custom Dev
+
+files[] = webmaster_utilities.install
+files[] = webmaster_utilities.module

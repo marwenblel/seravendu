@@ -1,0 +1,12 @@
+name = Country state
+description = This module allows administrators to define field type location (country and state)
+package = Custom Dev
+
+
+core = 7.x
+files[] = country_state.install
+files[] = country_state.module
+files[] = views/handlers/country_state_handler_filter_field_count.inc
+files[] = views/handlers/country_state_handler_filter_field_name_country.inc
+files[] = views/handlers/country_state_handler_filter_field_name_state.inc
+files[] = views/handlers/country_state_handler_filter_field_country_state.inc

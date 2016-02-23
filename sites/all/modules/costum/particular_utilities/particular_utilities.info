@@ -1,0 +1,7 @@
+name = Particular Utilities
+description = A module to set up the particular utilities such as navigation links...
+core = 7.x
+package = Custom Dev
+
+
+files[] = particular_utilities.module

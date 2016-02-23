@@ -1,0 +1,120 @@
+<?php
+/**
+ * @file: customer_widgets.module
+ */
+
+/**
+ * Implements hook_permission().
+ */
+
+function customer_widgets_permission() {
+    $permissions = array();
+    $permissions['webmaster manage site informations'] = array(
+        'title' => t('Webmaster manage site informations'),
+    );
+
+    return $permissions;
+
+}
+
+/**
+ * Implements hook_menu().
+ */
+function customer_widgets_menu () {
+    $items = array();
+
+    $items['webmaster/site-informations'] = array(
+        'title'            => t('Site informations.'),
+        'page callback'    => 'drupal_get_form',
+        'page arguments'   => array('_webmaster_site_informations_form'),
+        'access callback'  => 'user_access',
+        'type'             => MENU_NORMAL_ITEM,
+        'access arguments' => array('webmaster manage site informations'),
+    );
+
+    return $items;
+}
+
+
+/**
+ * @return drupal form.
+ */
+function _webmaster_site_informations_form ($form, &$form_state) {
+    $form = array();
+    $form['customer_service_phone'] = array(
+        '#type'     => 'textfield',
+        '#title'    => t('Customer service phone'),
+        '#description'    => t('A customer service phone'),
+        '#size'     => 25,
+        '#default_value' => variable_get('site_customer_phone', 0),
+    );
+
+
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => 'Save',
+    );
+
+
+    return $form;
+}
+
+/**
+ * Validation function _webmaster_site_informations_form()
+ */
+function _webmaster_site_informations_form_validate($form, &$form_state) {
+    if (isset($form_state['values']['customer_service_phone'])) {
+        if (!is_numeric($form_state['values']['customer_service_phone'])) {
+            form_set_error('number', t('Field must be Numeric'));
+        }
+    }
+
+}
+/**
+ * _webmaster_site_informations_form_submit().
+ */
+
+function _webmaster_site_informations_form_submit($form, &$form_state) {
+    if (isset($form_state['values']['customer_service_phone'])) {
+        $dashed_phone = implode('.', str_split($form_state['values']['customer_service_phone'], 2));
+        variable_set('site_customer_phone', $dashed_phone);
+        drupal_set_message(t('Site informations saved successfully.'));
+    }
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function customer_widgets_block_info() {
+    $blocks = array();
+
+    $blocks['customer_info_widget'] = array(
+        'info' => t('Customer info widget'),
+    );
+    return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function customer_widgets_block_view($delta = '') {
+    $block = array();
+
+    switch ($delta) {
+        case 'customer_info_widget':
+            $block['subject'] = t('Customer service widget.');
+            $block['content'] = _webmaster_customer_widget_content();
+
+    }
+    return $block;
+}
+/**
+ * _webmaster_customer_widget_content().
+ */
+function _webmaster_customer_widget_content() {
+    $customer_service_phone = variable_get('site_customer_phone', 0);
+    $output = '<span>'.t('Customers service').'&nbsp;</span><span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span></br>';
+    $output .= '<b>'. $customer_service_phone .'</b>&nbsp;</span><span class="glyphicon glyphicon-phone-alt" aria-hidden="true"></span>';
+    return $output;
+}
+

@@ -1,0 +1,319 @@
+<?php
+/**
+ * @file
+ * Core functionalities of Country state module
+ */
+/**
+ * Implements hook_init().
+ */
+function country_state_init() {
+    // load js file
+    drupal_add_js(drupal_get_path('module', 'country_state'). '/js/country_state.js');
+}
+/**
+ * Implements hook_menu().
+ */
+function country_state_menu() {
+    $items['country-state/get-states'] = array(
+        'title'            => t('Get states'),
+        'page callback'    => 'country_state_get_states_callback',
+        'access callback'  => TRUE,
+        'page arguments'   => array(2),
+        'type'             => MENU_CALLBACK,
+    );
+    return $items;
+}
+
+/**
+ *  country_state_get_states_callback
+ *
+ */
+function country_state_get_states_callback($key = '') {
+    // get all countries from location vocabulary
+    $states = array();
+    $location_vocabulary = taxonomy_vocabulary_machine_name_load('location');
+    $location = taxonomy_get_tree($location_vocabulary->vid);
+    foreach ($location as $item) {
+        if ($item->depth == 0) {
+            $childs = taxonomy_get_children($item->tid);
+            $childs_array = array();
+            foreach($childs as $child) {
+                $childs_array[strtolower($child->name)] = t($child->name);
+            }
+            $states[strtolower($item->name)] = $childs_array;
+        }
+
+
+    }
+
+    if (isset($states[$key])) {
+        $return = array('All' => t('--ANY--'))+$states[$key];
+    }
+    else {
+        $return = array('All' => t('--ANY--'));
+    }
+
+
+    drupal_json_output(array(
+        'states' => $return,
+    )
+   );
+}
+/**
+ * Implements hook_field_info().
+ */
+function country_state_field_info () {
+    return array(
+        'country_state' => array(
+            'label'             => t('Country state'),
+            'description'       => t('This field stores a country state string in the database.'),
+            'default_widget'    => 'country_state_widget',
+            'default_formatter' => 'country_state_default',
+        ),
+    );
+}
+/**
+ * Implements hook_field_widget_info().
+ */
+function country_state_field_widget_info () {
+    return array(
+        'country_state_field' => array(
+            'label'       => t('Default'),
+            'field types' => array('country_state'),
+        ),
+    );
+}
+/**
+ * Implements field settings form().
+ */
+function country_state_field_settings_form ($field, $instance, $has_data) {
+    $settings = $field['settings'];
+    $form = array();
+    return $form;
+}
+/**
+ * Implements hook_field_widget_form()
+ */
+function country_state_field_widget_form (&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+
+
+    switch($instance['widget']['type']) {
+        case 'country_state_field':
+           // get all countries from location vocabulary
+            $countries = array();
+            $location_vocabulary = taxonomy_vocabulary_machine_name_load('location');
+            $location = taxonomy_get_tree($location_vocabulary->vid);
+            foreach ($location as $item) {
+                if ($item->depth == 0) {
+                  $countries[strtolower($item->name)] = t($item->name);
+                }
+            }
+
+
+            $default_country  = isset($items[$delta]['country']) ? $items[$delta]['country'] : '';
+            $selected_country = isset($form_state['values'][$field['field_name']][$langcode][$delta]['country']) ? $form_state['values'][$field['field_name']][$langcode][$delta]['country'] : $default_country;
+
+
+            $element['country'] = array(
+                '#type'  => 'select',
+                '#title' => t('Country'),
+                '#options' => $countries,
+                '#default_value' => $default_country,
+                '#description'   => t('Select your country.'),
+                '#ajax' => array(
+                    'callback' => 'ajax_example_dependent_dropdown_callback',
+                    'wrapper' => 'dropdown-states-'.$delta,
+                ),
+            );
+            $default_state = isset($items[$delta]['state']) ? $items[$delta]['state'] : '';
+
+            $element['state'] = array(
+                '#type'  => 'select',
+                '#title' => t('State'),
+                '#prefix' => '<div id="dropdown-states-'.$delta.'">',
+                '#suffix' => '</div>',
+                '#options' => _ajax_example_get_second_dropdown_options($selected_country),
+                '#default_value' => $default_state,
+                '#description'   => t('Select your state.'),
+            );
+
+            break;
+    }
+    // Set field name variable
+    variable_set('field_name', $field['field_name']);
+
+    return $element;
+}
+
+/**
+ * Selects just the second dropdown to be returned for re-rendering
+ *
+ * Since the controlling logic for populating the form is in the form builder
+ * function, all we do here is select the element and return it to be updated.
+ *
+ * @return renderable array (the second dropdown)
+ */
+function ajax_example_dependent_dropdown_callback($form, $form_state) {
+// gets an array of the path of the triggering element.
+    $parents = $form_state['triggering_element']['#array_parents'];
+// removes the triggering element name.
+    array_pop($parents);
+// adds the element you want to target - in my case the element name is 'state'
+    array_push($parents, 'state');
+// turns the array into a path on $form - i.e. $form['field_name']['und'][0]['your_element_name'];
+    $element = drupal_array_get_nested_value($form, $parents);
+    return $element;
+
+}
+
+/**
+ * Helper function to populate the second dropdown. This would normally be
+ * pulling data from the database.
+ *
+ * @param $key
+ *   This will determine which set of options is returned.
+ *
+ * @return array of options
+ */
+function _ajax_example_get_second_dropdown_options($key = '') {
+
+
+    // get all countries from location vocabulary
+    $countries = array();
+    $location_vocabulary = taxonomy_vocabulary_machine_name_load('location');
+    $location = taxonomy_get_tree($location_vocabulary->vid);
+    foreach ($location as $item) {
+        if ($item->depth == 0) {
+            $childs = taxonomy_get_children($item->tid);
+            $childs_array = array();
+            foreach($childs as $child) {
+                $childs_array[strtolower($child->name)] = t($child->name);
+            }
+            $countries[strtolower($item->name)] = $childs_array;
+        }
+
+
+    }
+
+    if (isset($countries[$key])) {
+        return $countries[$key];
+    }
+    else {
+        return array();
+    }
+}
+
+/**
+ * Implements hook_field_presave().
+ */
+function country_state_field_presave ($entity_type, $entity, $field, $instance, $langcode, &$items) {
+    foreach ($items as $delta => $item) {
+
+
+           $items[$delta]['country'] = $item['country'];
+           $items[$delta]['state']   = $item['state'];
+    }
+   //drupal_set_message("Save items:<pre>" . print_r($entity, TRUE) . '</pre>');
+}
+
+
+function country_state_form_alter(&$form, &$form_state, $form_id) {
+   if ($form_id == 'article_node_form') {
+       //node_load(57)
+       //$form['#entity']->field_link['und'][0]['url'] = 'testtttttt';
+      //drupal_set_message("Save items:<pre>" . print_r($form['#entity']->field_link['und'][0], TRUE) . '</pre>');
+
+   }
+}
+/**
+ * Implements hook_field_is_empty().
+ */
+function country_state_field_is_empty ($item, $field) {
+    /*if (empty($item['country'])) {
+        return TRUE;
+    }*/
+    return FALSE;
+}
+/**
+ * Implements hook_field_formatter_info().
+ */
+function country_state_field_formatter_info() {
+    return array(
+        'country_state_default' => array(
+            'label'       => t('Default'),
+            'field types' => array('country_state'),
+        ),
+    );
+}
+/**
+ * Implements hook_field_formatter_view().
+ */
+function country_state_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+    $element = array();
+    switch ($display['type']) {
+        case 'country_state_default' :
+            foreach ($items as $delta => $item) {
+                if (isset($item['country'])) {
+                    $element[$delta]['#markup'] = $item['country'] . ' ' . $item['state'];
+                }
+            }
+            break;
+    }
+    return $element;
+}
+/**
+ * Implements hook_views_api().
+ */
+function country_state_views_api () {
+    return array(
+        'api'  => 3,
+        'path' => drupal_get_path('module', 'country_state') . '/views',
+    );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

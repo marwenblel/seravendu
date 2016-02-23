@@ -1,0 +1,47 @@
+<?php
+/**
+ * @file
+ * Install / Uninstall / Update functions of Country_state module
+ */
+
+/**
+ * Implements hook_install().
+ */
+function country_state_install () {
+    $location = (object) array(
+        'name' => 'Location',
+        'description' => 'This vocabulary was created to store countries / state',
+        'machine_name' => 'location',
+    );
+
+    taxonomy_vocabulary_save($location);
+}
+/**
+ * Implements hook_uninstall().
+ */
+function country_state_uninstall () {
+    $location = taxonomy_vocabulary_machine_name_load('location');
+    if ($location) {
+        taxonomy_vocabulary_delete($location->vid);
+    }
+}
+/**
+ * Implements hook_field_schema().
+ */
+function country_state_field_schema ($field) {
+    $field = array(
+        'columns' => array(
+            'country' => array(
+                'type'     => 'varchar',
+                'length'   => 30,
+                'not null' => TRUE,
+            ),
+            'state' => array(
+                'type'     => 'varchar',
+                'length'   => 30,
+                'not null' => FALSE,
+            ),
+        ),
+    );
+    return $field;
+}

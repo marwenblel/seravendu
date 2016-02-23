@@ -1,0 +1,51 @@
+name        = Seravendu
+description = Seravendu custom theme.
+
+
+core        = 7.x
+engine      = phptemplate
+stylesheets[all][] = css/reset.css
+stylesheets[all][] = css/style.css
+stylesheets[all][] = css/display.css
+stylesheets[all][] = css/menu.css
+stylesheets[all][] = css/slider.css
+
+;bootstrap css
+stylesheets[all][] = bootstrap/css/bootstrap.min.css
+stylesheets[all][] = bootstrap/css/bootstrap-theme.min.css
+
+;bootstrap js
+scripts[] = bootstrap/js/bootstrap.min.js
+
+
+
+regions[header]         = Header
+regions[navigation]     = Navigation bar
+regions[breadcrumb]     = Breadcrumb
+regions[highlighted]    = Highlighted
+regions[help]           = Help
+regions[content]        = Content
+regions[sidebar_first]  = First sidebar
+regions[sidebar_second] = Second sidebar
+regions[footer]         = Footer
+
+
+
+; SETTINGS
+;----------------------------------------------------
+settings[slideshow_display]  = 1
+settings[display]        = 1
+settings[slide1_title]   = "Solution that you need"
+settings[slide1_desc]    = "Lorem ipsum dolor sit amet, consectetur adipiscing elit"
+settings[slide2_title]   = "Be successful it's easy"
+settings[slide2_desc]    = "Lorem ipsum dolor sit amet, consectetur adipiscing elit"
+settings[slide3_title]   = "We work for your profit"
+settings[slide3_desc]    = "Lorem ipsum dolor sit amet, consectetur adipiscing elit"
+settings[twitter]        = "https://twitter.com/BlelMarwen"
+settings[facebook]       = "https://web.facebook.com/profile.php?id=100008619978040"
+settings[linkedin]       = "https://www.linkedin.com/profile/view?id=AAIAAAz-V10Bx_sFXS3zutU_CBsRlIQGM2UQHl4"
+settings[footer_copyright]   = 1
+settings[footer_developed]   = 1
+settings[footer_developedby]   = Blel Marouane
+settings[footer_developedby_url]   = http://in.linkedin.com/in/ujvalshah
+

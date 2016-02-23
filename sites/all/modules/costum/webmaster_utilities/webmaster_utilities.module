@@ -1,0 +1,457 @@
+<?php
+/**
+ * @file: webmaster_utilities.module
+ */
+
+// define user roles
+define('ANONYMOUS_USER', 'anonymous user');
+define('AUTHENTICATED_USER_ROLE', 'authenticated user');
+define('ADMINISTRATOR_ROLE', 'administrator');
+define('WEBMASTER_ROLE', 'webmaster');
+define('PARTICULAR_ROLE', 'particular');
+define('PROFESSIONAL_ROLE', 'professional');
+define('PENDING_ROLE', 'pending'); // extra role that doest not exist that represent an authenticated user not particular and not professional
+
+// define user roles ID
+define('ANONYMOUS_USER_ID', 1);
+define('AUTHENTICATED_USER_ROLE_ID', 2);
+define('ADMINISTRATOR_ROLE_ID', 3);
+define('WEBMASTER_ROLE_ID', 4);
+define('PARTICULAR_ROLE_ID', 5);
+define('PROFESSIONAL_ROLE_ID', 6);
+define('PENDING_ROLE_ID', 7);
+
+// define content types
+define('CAR_AD_CONTENT_TYPE', 'car_ad');
+define('CAR_REQUEST_CONTENT_TYPE', 'car_request');
+
+/**
+ * Implements hook_permission().
+ */
+function webmaster_utilities_permission() {
+    // we only need particular and professional roles
+    $roles = user_roles(TRUE);
+    $roles = array_diff($roles, array(AUTHENTICATED_USER_ROLE_ID => AUTHENTICATED_USER_ROLE,
+        ADMINISTRATOR_ROLE_ID      => ADMINISTRATOR_ROLE,
+        WEBMASTER_ROLE_ID          => WEBMASTER_ROLE));
+
+    $permissions = array();
+    $permissions['webmaster create new users'] = array(
+        'title' => t('Webmaster create new users'),
+    );
+    $permissions['webmaster create new terms'] = array(
+        'title' => t('Webmaster create new terms (all)'),
+    );
+
+    return $permissions;
+
+}
+
+/**
+ * Implements hook_menu().
+ */
+function webmaster_utilities_menu () {
+    global $theme;
+
+    $items = array();
+
+    $items['webmaster/add/car-ad'] = array(
+        'title'            => t('Add new car ad.'),
+        'page callback'    => '_webmaster_add_car',
+        'access callback'  => 'user_access',
+        'access arguments' => array('create car_ad content'),
+        'file'             => 'node.pages.inc',
+        'file path'        => drupal_get_path('module', 'node'),
+    );
+
+    $items['webmaster/add/request'] = array(
+        'title'            => t('Add new request.'),
+        'page callback'    => '_webmaster_add_request',
+        'access callback'  => 'user_access',
+        'access arguments' => array('create car_request content'),
+        'file'             => 'node.pages.inc',
+        'file path'        => drupal_get_path('module', 'node'),
+    );
+
+    $items['webmaster/add/user'] = array(
+        'title'            => t('Add new user.'),
+        'page callback'    => 'drupal_get_form',
+        'page arguments'   => array('_webmaster_add_user_form'),
+        'access callback'  => 'user_access',
+        'type'             => MENU_NORMAL_ITEM,
+        'access arguments' => array('webmaster create new users'),
+    );
+
+    $items['webmaster/add/%taxonomy_vocabulary_machine_name'] = array(
+        'title'            => t('Add new maker.'),
+        'page callback'    => 'drupal_get_form',
+        'page arguments'   => array('taxonomy_form_term', 2),
+        'access callback'  => 'user_access',
+        'access arguments' => array('webmaster create new terms'),
+        'type'             => MENU_LOCAL_ACTION,
+        'file path'        => drupal_get_path('module', 'taxonomy'),
+        'file'             => 'taxonomy.admin.inc',
+    );
+
+    $items['webmaster/themes/%'] = array(
+        'title'            => t('Manage default theme.'),
+        'page callback'    => 'drupal_get_form',
+        'page arguments'   => array('system_theme_settings',$theme),
+        'access callback'  => 'user_access',
+        'access arguments' => array('webmaster create new terms'),
+        'type'             => MENU_LOCAL_ACTION,
+        'file path'        => drupal_get_path('module', 'system'),
+        'file'             => 'system.admin.inc',
+    );
+
+    return $items;
+}
+
+/**
+ * Implements hook_page_alter().
+ */
+function webmaster_utilities_page_alter(&$page) {
+    global $user;
+
+
+    if (in_array(WEBMASTER_ROLE, $user->roles)) {
+// If the toolbar is available, add a pre-render function to display the
+// current shortcuts in the toolbar drawer.
+
+        if (isset($page['page_top']['toolbar'])) {
+            $page['page_top']['toolbar']['#pre_render'][] = 'webmaster_utilities_toolbar_pre_render';
+        }
+
+    }
+}
+/**
+ * We use this function to add elements into the webmaster's toolbar
+ */
+function webmaster_utilities_toolbar_pre_render($toolbar) {
+    global $theme;
+
+
+    $toolbar['toolbar_menu']['#links'][] = array(
+        'title' => t('Manage users'),
+        'href'  => 'webmaster/users');
+
+    $toolbar['toolbar_menu']['#links'][] = array(
+        'title' => t('Manage car ads'),
+        'href'  => 'webmaster/car-ads');
+
+    $toolbar['toolbar_menu']['#links'][] = array(
+        'title' => t('Manage requests'),
+        'href'  => 'webmaster/requests');
+
+    $toolbar['toolbar_menu']['#links'][] = array(
+        'title' => t('Manage makers'),
+        'href'  => 'webmaster/makers');
+
+    $toolbar['toolbar_menu']['#links'][] = array(
+        'title' => t('Manage site pages'),
+        'href'  => 'webmaster/site-pages');
+
+    $toolbar['toolbar_menu']['#links'][] = array(
+        'title' => t('Themes'),
+        'href'  => 'webmaster/themes/'.$theme);
+
+    $toolbar['toolbar_menu']['#links'][] = array(
+        'title' => t('Tickers'),
+        'href'  => 'webmaster/tickers');
+
+    $toolbar['toolbar_menu']['#links'][] = array(
+        'title' => t('Emails'),
+        'href'  => 'webmaster/emails');
+
+    $toolbar['toolbar_menu']['#links'][] = array(
+        'title' => t('Comments'),
+        'href'  => 'webmaster/comments');
+
+    $toolbar['toolbar_menu']['#links'][] = array(
+        'title' => t('Site information'),
+        'href'  => 'webmaster/site-informations');
+
+
+
+    return $toolbar;
+}
+
+/**
+ * Return car ad add form.
+ */
+function _webmaster_add_car() {
+    module_load_include('inc', 'node', 'node.pages');
+    $form = node_add(CAR_AD_CONTENT_TYPE);
+    $form['additional_settings']['#access'] = TRUE;
+    $form['revision_information']['#access'] = FALSE;
+    $form['author']['#access'] = TRUE;
+    $form['options']['#access'] = TRUE;
+
+
+    $output = drupal_render($form);
+    return $output;
+}
+
+/**
+ * Return request ad add form.
+ */
+function _webmaster_add_request() {
+    module_load_include('inc', 'node', 'node.pages');
+    $form = node_add(CAR_REQUEST_CONTENT_TYPE);
+    $form['additional_settings']['#access'] = TRUE;
+    $form['revision_information']['#access'] = FALSE;
+    $form['author']['#access'] = TRUE;
+    $form['options']['#access'] = TRUE;
+
+
+    $output = drupal_render($form);
+    return $output;
+}
+
+/**
+ * @return drupal form.
+ */
+function _webmaster_add_user_form ($form, &$form_state) {
+    $form = array();
+    $form['name'] = array(
+        '#type'     => 'textfield',
+        '#title'    => t('Username'),
+        '#required' => TRUE,
+        '#size'     => 25,
+    );
+
+    $form['email'] = array(
+        '#type'     => 'textfield',
+        '#title'    => t('E-mail address'),
+        '#required' => TRUE,
+        '#size'     => 25,
+    );
+
+
+    $form['password'] = array(
+        '#type'     => 'password_confirm',
+        '#required' => TRUE,
+    );
+
+    $form['status'] = array(
+        '#type'          => 'radios',
+        '#title'         => t('Status'),
+        '#default_value' => 1,
+        '#required' => TRUE,
+        '#options'       => array(
+            0 => 'Blocked',
+            1 => 'Active',
+        ),
+    );
+
+    $form['roles'] = array(
+        '#type'          => 'radios',
+        '#title'         => t('Role'),
+        '#default_value' => 5,
+        '#options'       => array(
+            5 => 'Particular',
+            6 => 'Professional',
+        ),
+        '#required' => TRUE,
+    );
+
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => 'Create account',
+    );
+
+
+    return $form;
+}
+
+
+
+/**
+ * Validation function _webmaster_add_user_form()
+ */
+function _webmaster_add_user_form_validate($form, &$form_state) {
+    if (!valid_email_address($form_state['values']['email'])) {
+        form_set_error('email address', t('Enter a valid email address.'));
+    }
+}
+
+/**
+ * _webmaster_add_user_form_submit().
+ */
+
+function _webmaster_add_user_form_submit($form, &$form_state) {
+
+    $user = array(
+        'name'   => $form_state['values']['name'],
+        'pass'   => $form_state['values']['password'],
+        'mail'   => $form_state['values']['email'],
+        'status' => $form_state['values']['status'],
+        'init'   => $form_state['values']['email'],
+
+    );
+    $username = $user['name'];
+
+    $account = user_save(null, $user);
+    user_multiple_role_edit(array($account->uid), 'add_role', $form_state['values']['roles']);
+    drupal_set_message(t('Account %name was created successfully.', array('%name' => $username)));
+}
+
+
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function webmaster_utilities_form_alter(&$form, &$form_state, $form_id) {
+
+
+    if ($form_id == 'user_profile_form') {   /* alter user profile form */
+        global $user;
+        $account = $form['#user'];
+
+        if (in_array(WEBMASTER_ROLE, $user->roles)) {  /* Verify that connected user have webmaster role */
+
+
+            if (($user->uid == $account->uid) ) {     /* Webmaster modifying his own account */
+
+                $form['account']['status']['#access'] = FALSE; /* Webmaster cant access status widget */
+
+            }
+            else if (in_array(PARTICULAR_ROLE, $account->roles)) {  /* Webmaster modifying a particular account */
+
+                $form['picture']['#access'] = FALSE;
+                $form['account']['roles']['#access'] = FALSE;
+                $form['account']['extra_roles'] = array(
+                    '#type'          => 'select',
+                    '#access'        => TRUE,
+                    '#options'       => array(PARTICULAR_ROLE_ID   => t(ucfirst(PARTICULAR_ROLE)),
+                        PROFESSIONAL_ROLE_ID => t(ucfirst(PROFESSIONAL_ROLE)),
+                        PENDING_ROLE_ID      => t(PENDING_ROLE)),
+                    '#default_value' => PARTICULAR_ROLE_ID,
+                );
+
+            } else if (in_array(PROFESSIONAL_ROLE, $account->roles)) {
+                $form['account']['roles']['#access'] = FALSE;
+                $form['account']['extra_roles'] = array(
+                    '#type'          => 'select',
+                    '#access'        => TRUE,
+                    '#options'       => array(PARTICULAR_ROLE_ID   => t(ucfirst(PARTICULAR_ROLE)),
+                        PROFESSIONAL_ROLE_ID => t(ucfirst(PROFESSIONAL_ROLE)),
+                        PENDING_ROLE_ID      => t(PENDING_ROLE)),
+                    '#default_value' => PROFESSIONAL_ROLE_ID,
+                );
+
+
+            } else  {
+                $form['account']['roles']['#access'] = FALSE;
+                $form['account']['role_pending'] = array(
+                    '#type' => 'checkbox',
+                    '#title' => t('Pending user'),
+                    '#default_value' => TRUE,
+                    '#disabled' => TRUE,
+                );
+                $form['account']['extra_roles'] = array(
+                    '#type' => 'select',
+                    '#access' => TRUE,
+                    '#options'       => array(PARTICULAR_ROLE_ID   => t(ucfirst(PARTICULAR_ROLE)),
+                        PROFESSIONAL_ROLE_ID => t(ucfirst(PROFESSIONAL_ROLE))),
+                );
+
+
+
+            }
+        }
+        elseif (in_array(PARTICULAR_ROLE, $user->roles)) { /* Verify that connected user have particular role */
+
+            if (($user->uid == $account->uid) ) { /* Verify that account user to edit bellow to particular */
+                $form['picture']['#access'] = FALSE;
+            }
+
+        }
+
+
+
+    } elseif ($form_id == 'user_register_form') {
+
+        $form['extra_roles'] = array(
+            '#type'          => 'select',
+            '#access'        => TRUE,
+            '#options'       => array(PARTICULAR_ROLE_ID   => t(ucfirst(PARTICULAR_ROLE)),
+                PROFESSIONAL_ROLE_ID => t(ucfirst(PROFESSIONAL_ROLE))),
+        );
+    }
+
+
+}
+
+/**
+ * Implements hook_user_presave().
+ */
+function webmaster_utilities_user_presave(&$edit, $account, $category) {
+    global $user;
+
+    if ($category == 'account') {
+        if (in_array(ANONYMOUS_USER, $user->roles)) {
+            if (isset($edit['extra_roles'])) {
+                $extra_role = (int) $edit['extra_roles'];
+                $edit['roles'][$extra_role] = true;
+            }
+        }
+
+    }
+}
+
+/**
+ * Implements hook_user_update().
+ */
+function webmaster_utilities_user_update(&$edit, $account, $category) {
+    global $user;
+
+
+
+    if ($category == 'account') {
+
+        if (isset($edit['extra_roles']) AND (in_array(WEBMASTER_ROLE, $user->roles))) {
+            $extra_role = (int) $edit['extra_roles'];
+
+            if ($extra_role == PARTICULAR_ROLE_ID) {
+                user_multiple_role_edit(array($account->uid), 'add_role', $extra_role);
+                user_multiple_role_edit(array($account->uid), 'remove_role', PROFESSIONAL_ROLE_ID);
+            } else if ($extra_role == PROFESSIONAL_ROLE_ID) {
+                user_multiple_role_edit(array($account->uid), 'add_role', $extra_role);
+                user_multiple_role_edit(array($account->uid), 'remove_role', PARTICULAR_ROLE_ID);
+            } else if ($extra_role == 7) {
+                user_multiple_role_edit(array($account->uid), 'remove_role', PARTICULAR_ROLE_ID);
+                user_multiple_role_edit(array($account->uid), 'remove_role', PROFESSIONAL_ROLE_ID);
+
+            }
+            unset($edit['extra_roles']);
+        }
+
+
+    }
+}
+
+
+/**
+ * Implements hook_views_post_execute().
+ */
+function webmaster_utilities_views_post_execute(&$view) {
+    // Fix breadcrumb path from webmaster/ads/user/all to webmaster/ads/user/id
+
+    if ($view->name == 'ads_by_users') {
+
+        if(!empty($view->args)) {
+
+            $breadcrumb[] = l('Home', '<front>');
+
+            $arg1                = $view->args[0];
+            $title_tag_link = strip_tags($view->get_breadcrumb()[0]);
+
+            $breadcrumb[] = l($title_tag_link, $view->get_url());
+            drupal_set_breadcrumb($breadcrumb);
+
+
+        }
+    }
+}
+

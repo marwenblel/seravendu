@@ -1,0 +1,758 @@
+<?php
+/**
+ * @file
+ * This is the main code file for the Basic webmail module.
+ * All the Drupal hook implementations are in here.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function basic_webmail_help($path, $arg) {
+  $output = '';
+
+  switch ($path) {
+    case 'admin/config/basic_webmail':
+      $output = t('Send and receive email through an IMAP mail server.');
+      break;
+  }
+
+  return $output;
+}
+
+
+/**
+ * Implements hook_permission().
+ */
+function basic_webmail_permission() {
+  return array(
+    'administer basic_webmail' => array(
+      'title' => t('Administer basic_webmail'),
+      'description' => t('Perform administration tasks for Basic webmail.'),
+    ),
+    'access basic_webmail' => array(
+      'title' => t('Access basic_webmail'),
+      'description' => t('Use Basic webmail'),
+    ),
+    "access users' email addresses" => array(
+      'title' => t("Access users' email addresses"),
+      'description' => t('This permission gives anyone sending an email with Basic webamil access to the email addresses of all active users registered on this website.'),
+    ),
+    'basic webmail override text format' => array(
+      'title' => t('Override default text format'),
+      'description' => t("Allows the message sender to override the message body's default text format when creating the message."),
+    ),
+    'basic webmail include attachments' => array(
+      'title' => t('Attach files to messages'),
+      'description' => t('Allows the message sender to include attachments with the message.'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_menu().
+ */
+function basic_webmail_menu() {
+  $items = array();
+
+  // Admin settings.
+  $items['admin/config/system/basic_webmail'] = array(
+    'title' => 'Basic webmail',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('basic_webmail_admin_settings'),
+    'access arguments' => array('administer basic_webmail'),
+    'description' => 'Configure the mail server.',
+    'file' => 'basic_webmail.admin.inc',
+  );
+
+  // The main email listing page (the inbox).
+//  $items['basic_webmail'] = array(
+//    'title' => 'Email',
+//    'page callback' => 'basic_webmail_message_list',
+//    'description' => 'Send and/or receive email.',
+//    'access arguments' => array('access basic_webmail'),
+//    'type' => MENU_NORMAL_ITEM,
+//    'file' => 'basic_webmail.list.inc',
+//  );
+
+  // The message list page.
+//  $items['basic_webmail/list/%'] = array(
+//    'page callback' => 'basic_webmail_message_list',
+//    'page arguments' => array(2),
+//    'access arguments' => array('access basic_webmail'),
+//    'type' => MENU_CALLBACK,
+//    'file' => 'basic_webmail.list.inc',
+//  );
+
+  // The arguments for the next four menu items are the folder and the message
+  // number.
+  // The message view page.
+  $items['basic_webmail/read/%/%'] = array(
+    'page callback' => 'basic_webmail_message',
+    'page arguments' => array(2, 3),
+    'access arguments' => array('access basic_webmail'),
+    'type' => MENU_CALLBACK,
+    'file' => 'basic_webmail.read.inc',
+  );
+
+  // The copy message page.
+//  $items['basic_webmail/copy/%/%'] = array(
+//    'page callback' => 'drupal_get_form',
+//    'page arguments' => array('_basic_webmail_copy_message_form', 2, 3),
+//    'access arguments' => array('access basic_webmail'),
+//    'type' => MENU_CALLBACK,
+//    'file' => 'basic_webmail.view.inc',
+//  );
+//  // The delete message confirmation page.
+//  $items['basic_webmail/delete/%/%'] = array(
+//    'page callback' => 'drupal_get_form',
+//    'page arguments' => array('_basic_webmail_delete_message_form', 2, 3),
+//    'access arguments' => array('access basic_webmail'),
+//    'type' => MENU_CALLBACK,
+//    'file' => 'basic_webmail.view.inc',
+//  );
+//  // The move message page.
+//  $items['basic_webmail/move/%/%'] = array(
+//    'page callback' => 'drupal_get_form',
+//    'page arguments' => array('_basic_webmail_move_message_form', 2, 3),
+//    'access arguments' => array('access basic_webmail'),
+//    'type' => MENU_CALLBACK,
+//    'file' => 'basic_webmail.view.inc',
+//  );
+
+  // The compose message page.
+  $items['basic_webmail/compose'] = array(
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('_basic_webmail_send_mail_form'),
+    'access arguments' => array('access basic_webmail'),
+    'type' => MENU_CALLBACK,
+    'file' => 'basic_webmail.compose.inc',
+  );
+
+  // Show email matches when filling in the forms.
+  $items['basic_webmail/autocomplete'] = array(
+    'title' => 'Basic webmail autocomplete',
+    'page callback' => 'basic_webmail_autocomplete',
+    'access arguments' => array("access users' email addresses"),
+    'type' => MENU_CALLBACK,
+    'file' => 'basic_webmail.compose.inc',
+  );
+
+  return $items;
+}
+
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Modifies the user profile page to add the login ID and password fields.
+ */
+function basic_webmail_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
+  // If this is the user's account form, they are allowed to access Basic
+  // webmail, and the administrator has chosen to collect the login ID and
+  // password, then add the fields to the form.
+  if ($form['#user_category'] == 'account' && user_access('access basic_webmail', $form['#user'])) {
+    $form['basic_webmail_email_settings'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Basic webmail account settings'),
+      '#collapsible' => TRUE,
+      '#weight' => 1,
+    );
+    _basic_webmail_form_user_form($form);
+
+    $default_value = !empty($form['#user']->data['basic_webmail_wait_time']) ? $form['#user']->data['basic_webmail_wait_time'] : 30;
+    $form['basic_webmail_email_settings']['basic_webmail_wait_time'] = array(
+      '#type' => 'textfield',
+      '#title' => t('How long to wait to check for new messages'),
+      '#size' => 10,
+      '#default_value' => $default_value,
+      '#description' => t('Enter an integer indicating the number of minutes to wait before checking for new messages on the server. Set the number to 0 to check on every mailbox/folder page load.'),
+    );
+  }
+}
+
+/**
+ * Validation the user profile page.
+ */
+function basic_webmail_form_user_profile_form_alter_validate(&$form, &$form_state, $form_id) {
+  _basic_webmail_form_user_form_validate($form);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Modifies the user registration page to add the login ID and password fields.
+ */
+function basic_webmail_form_user_register_form_alter(&$form, &$form_state, $form_id) {
+  // If the user is allowed to access Basic webmail, and the administrator has
+  // chosen to collect the login ID and password, then add the fields to the
+  // form.
+  if (user_access('access basic_webmail', $form['#user'])) {
+    $form['basic_webmail_email_settings'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Basic webmail account settings'),
+      '#collapsible' => TRUE,
+      '#weight' => 1,
+    );
+    _basic_webmail_form_user_form($form);
+  }
+}
+
+/**
+ * Validation for the user registration page.
+ */
+function basic_webmail_form_user_register_form_alter_validate(&$form, &$form_state) {
+  _basic_webmail_form_user_form_validate($form);
+}
+
+/**
+ * The form parts to add to the user forms above.
+ *
+ * @param array $form
+ *   The form to modify.
+ */
+function _basic_webmail_form_user_form(&$form) {
+  // If there is an existing email address specified, display it.
+  $default_value = !empty($form['#user']->data['basic_webmail_username']) ? $form['#user']->data['basic_webmail_username'] : '';
+  $form['basic_webmail_email_settings']['basic_webmail_username'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email account login'),
+    '#default_value' => $default_value,
+    '#description' => t('The login ID of your email account.'),
+//    '#required' => TRUE,
+  );
+  $form['basic_webmail_email_settings']['basic_webmail_password'] = array(
+    '#type' => 'password_confirm',
+    '#description' => t('The login password of your email account.'),
+  );
+}
+
+/**
+ * Validation for the user forms above.
+ * 
+ * @param array $form
+ */
+function _basic_webmail_form_user_form_validate(&$form) {
+
+}
+
+
+/**
+ * Implements hook_user_presave().
+ */
+function basic_webmail_user_presave(&$edit, $account, $category) {
+  // Check to see if we need to save any information.
+  if ($category == 'account' && user_access('access basic_webmail', $account)) {
+    // Initialize the variable to keep track of changes, so we don't access the
+    // mail server unnecessarily.
+    $changed = 0;
+
+    // If the login ID has changed and is not empty, save it.
+    if (!empty($edit['basic_webmail_username'])) {
+      if (empty($account->data['basic_webmail_username']) || ($account->data['basic_webmail_username'] != $edit['basic_webmail_username'])) {
+        $edit['data']['basic_webmail_username'] = $edit['basic_webmail_username'];
+        $changed++;
+      }
+    }
+
+    // Becuase it's empty by default when the form is shown, if there is
+    // anything in the password field, save it.
+    if (!empty($edit['basic_webmail_password'])) {
+      // Include the file that has the encrypt and decrypt functions in it.
+      include_once drupal_get_path('module', 'basic_webmail') . '/basic_webmail.common.inc';
+      $edit['data']['basic_webmail_password'] = _basic_webmail_encrypt_password($edit['basic_webmail_password']);
+      $changed++;
+    }
+
+    // If the wait time has changed and is not empty, save it.
+    if (!empty($edit['basic_webmail_wait_time'])) {
+      if (empty($account->data['basic_webmail_wait_time']) || ($account->data['basic_webmail_wait_time'] != $edit['basic_webmail_wait_time'])) {
+        $edit['data']['basic_webmail_wait_time'] = $edit['basic_webmail_wait_time'];
+      }
+    }
+
+    if ($changed > 0) {
+      // Include the file that has the mailbox subscription functions in it.
+//      include_once drupal_get_path('module', 'basic_webmail') . '/basic_webmail.common.inc';
+      // @TODO: Subscribe to mailboxes.
+    }
+  }
+}
+
+
+/**
+ * Implements hook_mail().
+ *
+ * @param string $key
+ *   An identifier of the mail.
+ * @param array $message
+ *   An array to be filled in. Elements in this array include:
+ *   - id: An ID to identify the mail sent. Look at module source code or
+ *     drupal_mail() for possible id values.
+ *   - to: The address or addresses the message will be sent to. The formatting
+ *     of this string must comply with RFC 2822.
+ *   - subject: Subject of the e-mail to be sent. This must not contain any
+ *     newline characters, or the mail may not be sent properly. drupal_mail()
+ *     sets this to an empty string when the hook is invoked.
+ *   - body: An array of lines containing the message to be sent. Drupal will
+ *     format the correct line endings for you. drupal_mail() sets this to an
+ *     empty array when the hook is invoked.
+ *   - from: The address the message will be marked as being from, which is set
+ *     by drupal_mail() to either a custom address or the site-wide default
+ *     email address when the hook is invoked.
+ *   - headers: Associative array containing mail headers, such as From, Sender,
+ *     MIME-Version, Content-Type, etc. drupal_mail() pre-fills several headers
+ *     in this array.
+ * @param array $params
+ *   An array of parameters supplied by the caller of drupal_mail().
+ */
+function basic_webmail_mail($key, &$message, $params) {
+  if (!empty($params['headers'])) {
+    foreach ($params['headers'] as $key => $value) {
+      $message['headers'][$key] = $params['headers'][$key];
+    }
+  }
+  $message['subject'] = $params['subject'];
+  $message['body'] = $params['body'];
+}
+
+
+/**
+ * Implements hook_views_api().
+ */
+function basic_webmail_views_api() {
+  return array(
+    'api' => 3,
+    'path' => drupal_get_path('module', 'basic_webmail'),
+  );
+}
+
+
+/**
+ * Implements hook_views_pre_view().
+ *
+ * Here is where the updating of stored messages is done.
+ */
+function basic_webmail_views_pre_view(&$view, &$display_id, &$args) {
+  // Set the folder to check.
+  $folder = 'INBOX';
+  if (!empty($args[0])) {
+    $folder = $args[0];
+  }
+
+  // Get the user's specified wait time for checking for new mail.
+  global $user;
+  $wait_time = 30;
+  if (!empty($user->data['basic_webmail_wait_time'])) {
+    $wait_time = $user->data['basic_webmail_wait_time'];
+  }
+
+  // Get the last time this folder was checked.
+  $query = "SELECT last_checked FROM {basic_webmail_folders} WHERE user_id = :user_id AND folder_name = :folder_name";
+  $last_check = db_query($query, array(':user_id' => $user->uid, ':folder_name' => $folder))->fetchField();
+
+  // Get the current time.
+  $time = REQUEST_TIME;
+
+  if ((!$wait_time || $time == $last_check) || ($wait_time > 0 && $time > $last_check + ($wait_time * 60))) {
+    require_once 'basic_webmail.list.inc';
+    _basic_webmail_update_stored_message_list($folder);
+    variable_set('basic_webmail_checked_time', REQUEST_TIME);
+  }
+}
+
+
+/**
+ * Implements hook_entity_info().
+ */
+function basic_webmail_entity_info() {
+  return array(
+    'basic_webmail_messages' => array(
+      'label' => t('Basic webmail messages'),
+      'controller class' => 'EntityAPIController',
+      'base table' => 'basic_webmail_messages',
+      'static cache' => FALSE,
+      'field cache' => FALSE,
+      'fieldable' => FALSE,
+
+      'entity keys' => array(
+        'id' => 'message_number',
+        'label' => 'message_subject',
+        'language' => 'language',
+      ),
+
+      'view modes' => array(
+        'list' => array(
+          'label' => t('List'),
+          'custom settings' => FALSE,
+        ),
+        'message' => array(
+          'label' => t('Message'),
+          'custom settings' => FALSE,
+        ),
+      ),
+    ),
+    'basic_webmail_folders' => array(
+      'label' => t('Basic webmail folders'),
+      'controller class' => 'EntityAPIController',
+      'base table' => 'basic_webmail_folders',
+      'static cache' => FALSE,
+      'field cache' => FALSE,
+      'fieldable' => FALSE,
+
+      'entity keys' => array(
+        'id' => 'fid',
+        'label' => 'folder_name',
+        'language' => 'language',
+      ),
+
+      'view modes' => array(
+        'list' => array(
+          'label' => t('List'),
+          'custom settings' => FALSE,
+        ),
+        'message' => array(
+          'label' => t('Folder'),
+          'custom settings' => FALSE,
+        ),
+      ),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_trigger_info().
+ * /
+function basic_webmail_trigger_info() {
+  return array(
+    'basic_webmail_messages' => array(
+      'mark_messages_read' => array(
+        'label' => t('When messages are marked as read'),
+      ),
+      'mark_messages_unread' => array(
+        'label' => t('When messages are marked as unread'),
+      ),
+      'copy_messages' => array(
+        'label' => t('When messages are copied'),
+      ),
+      'move_messages' => array(
+        'label' => t('When messages are moved'),
+      ),
+      'delete_messages' => array(
+        'label' => t('When messages are deleted'),
+      ),
+    ),
+  );
+}
+
+/**
+ * mark_messages_read trigger: Run actions associated with this event.
+ *
+ * Here pressing a button is a trigger. We have defined a
+ * custom function as a trigger (trigger_example_triggersomething).
+ * It will ask for all actions attached to the 'triggersomething' event,
+ * prepare a basic 'context' for them
+ * and run all of them. This could have been implemented by a hook
+ * implementation, but in this demonstration, it will just be called in a
+ * form's submit.
+ *
+ * This function is executed during the submission of the example form defined
+ * in this module.
+ *
+ * @param array $options
+ *   The arguments used to call this trigger, if any.
+ * /
+function basic_webmail_mark_messages_read($options = array()) {
+dpm($options, '$options');
+  // Ask the trigger module for all actions enqueued for the
+  // 'mark_messages_read' trigger.
+  $aids = trigger_get_assigned_actions('mark_messages_read');
+  // Prepare a basic context, indicating group and "hook", and call all the
+  // actions with this context as arguments.
+  $context = array(
+    'group' => 'trigger_example',
+    'hook' => 'triggersomething'
+  );
+  actions_do(array_keys($aids), (object) $options, $context);
+}
+
+
+/**
+ * Implements hook_action_info().
+ */
+function basic_webmail_action_info() {
+  return array(
+    'basic_webmail_mark_messages_read_action' => array(
+      'type' => 'basic_webmail_messages',
+      'label' => t('Mark selected message(s) as read'),
+      'configurable' => FALSE,
+      'triggers' => array('any'),
+  //    'behavior' => array('changes_property'),
+      'vbo_configurable' => FALSE,
+    ),
+    'basic_webmail_mark_messages_unread_action' => array(
+      'type' => 'basic_webmail_messages',
+      'label' => t('Mark selected message(s) as unread'),
+      'configurable' => FALSE,
+      'triggers' => array('any'),
+  //    'behavior' => array('changes_property'),
+      'vbo_configurable' => FALSE,
+    ),
+    'basic_webmail_copy_messages_action' => array(
+      'type' => 'basic_webmail_messages',
+      'label' => t('Copy selected message(s)'),
+      'configurable' => FALSE,
+      'triggers' => array('any'),
+  //    'behavior' => array('changes_property'),
+      'vbo_configurable' => FALSE,
+    ),
+    'basic_webmail_move_messages_action' => array(
+      'type' => 'basic_webmail_messages',
+      'label' => t('Move selected message(s)'),
+      'configurable' => FALSE,
+      'triggers' => array('any'),
+  //    'behavior' => array('changes_property'),
+      'vbo_configurable' => FALSE,
+    ),
+    'basic_webmail_delete_messages_action' => array(
+      'type' => 'basic_webmail_messages',
+      'label' => t('Delete selected message(s)'),
+      'configurable' => FALSE,
+      'triggers' => array('any'),
+  //    'behavior' => array('changes_property'),
+      'vbo_configurable' => FALSE,
+    ),
+  );
+}
+
+
+/**
+ * Marks a group of messages as read.
+ *
+ * @param object $email_message
+ *   The object that the action acts on.
+ * @param array $context
+ *   Additional information about what triggered the action.
+ */
+function basic_webmail_mark_messages_read_action($email_message, $context) {
+dpm($email_message, '$email_message');
+dpm($context, '$context');
+  $error = 0;
+  $message_count = 0;
+
+  include_once drupal_get_path('module', 'basic_webmail') . '/basic_webmail.common.inc';
+  $imap_resource = _basic_webmail_connect_to_server($user_id);
+  if (empty($imap_resource)) {
+    $message = 'There was an error connecting to the mail server. Contact the system administrator and/or check the logs for more information.';
+    _basic_webmail_report_error($message, array(), WATCHDOG_ERROR, TRUE);
+    return;
+  }
+
+  foreach ($messages as $message_number) {
+    if (!imap_setflag_full($imap_resource, $message_number, '\\Seen')) {
+      // Report the error.
+      $message = 'There was an error setting the flag of message #@message_number.';
+      $message_parameters = array('@message_number' => $message_number);
+      _basic_webmail_report_error($message, $message_parameters, WATCHDOG_ERROR, TRUE);
+      $error++;
+    }
+    else {
+      $message_count++;
+    }
+  }
+
+  if (empty($error)) {
+    drupal_set_message(t('@message_count messages were successfully marked as read.', array('@message_count' => $message_count)));
+  }
+}
+
+/**
+ * Marks a group of messages as unread.
+ *
+ * @param object $email_message
+ *   The object that the action acts on.
+ * @param array $context
+ *   Additional information about what triggered the action.
+ */
+function basic_webmail_mark_messages_unread_action($email_message, $context) {
+  $error = 0;
+  $message_count = 0;
+
+  include_once drupal_get_path('module', 'basic_webmail') . '/basic_webmail.common.inc';
+  $imap_resource = _basic_webmail_connect_to_server($user_id);
+  if (empty($imap_resource)) {
+    $message = 'There was an error connecting to the mail server. Contact the system administrator and/or check the logs for more information.';
+    _basic_webmail_report_error($message, array(), WATCHDOG_ERROR, TRUE);
+    return;
+  }
+
+  foreach ($messages as $message_number) {
+    if (!imap_clearflag_full($imap_resource, $message_number, '\\Seen')) {
+      // Report the error.
+      $message = 'There was an error clearing the flag of message #@message_number.';
+      $message_parameters = array('@message_number' => $message_number);
+      _basic_webmail_report_error($message, $message_parameters, WATCHDOG_ERROR, TRUE);
+      $error++;
+    }
+    else {
+      $message_count++;
+    }
+  }
+
+  if (empty($error)) {
+    drupal_set_message(t('@message_count messages were successfully marked as unread.', array('@message_count' => $message_count)));
+  }
+}
+
+/**
+ * Copies a group of messages to another folder.
+ *
+ * @param object $email_message
+ *   The object that the action acts on.
+ * @param array $context
+ *   Additional information about what triggered the action.
+ */
+function basic_webmail_copy_messages_action($email_message, $context) {
+  $error = 0;
+  $message_count = 0;
+
+  include_once drupal_get_path('module', 'basic_webmail') . '/basic_webmail.common.inc';
+  $imap_resource = _basic_webmail_connect_to_server($user_id);
+  if (empty($imap_resource)) {
+    $message = 'There was an error connecting to the mail server. Contact the system administrator and/or check the logs for more information.';
+    _basic_webmail_report_error($message, array(), WATCHDOG_ERROR, TRUE);
+    return;
+  }
+
+  foreach ($messages as $message_number) {
+    if (!imap_mail_copy($imap_resource, $message_number, $form_state['values']['folder_name'])) {
+      // Report the error.
+      $message = 'There was an error copying message #@message_number.';
+      $message_parameters = array('@message_number' => $message_number);
+      _basic_webmail_report_error($message, $message_parameters, WATCHDOG_ERROR, TRUE);
+      $error++;
+    }
+    else {
+      $message_count++;
+    }
+  }
+
+  if (!imap_expunge($imap_resource)) {
+    include_once drupal_get_path('module', 'basic_webmail') . '/basic_webmail.common.inc';
+    // Report the error.
+    $message = 'There was an error expunging the mailboxes.';
+    _basic_webmail_report_error($message, array(), WATCHDOG_WARNING);
+    $error++;
+  }
+
+  if (empty($error)) {
+    drupal_set_message(t('@message_count messages were successfully copied to @folder_name.', array('@message_count' => $message_count, '@folder_name' => $form_state['values']['folder_name'])));
+  }
+}
+
+/**
+ * Moves a group of messages to another folder.
+ *
+ * @param object $email_message
+ *   The object that the action acts on.
+ * @param array $context
+ *   Additional information about what triggered the action.
+ */
+function basic_webmail_move_messages_action($email_message, $context) {
+  $error = 0;
+  $message_count = 0;
+
+  include_once drupal_get_path('module', 'basic_webmail') . '/basic_webmail.common.inc';
+  $imap_resource = _basic_webmail_connect_to_server($user_id);
+  if (empty($imap_resource)) {
+    $message = 'There was an error connecting to the mail server. Contact the system administrator and/or check the logs for more information.';
+    _basic_webmail_report_error($message, array(), WATCHDOG_ERROR, TRUE);
+    return;
+  }
+
+  foreach ($messages as $message_number) {
+    if (!imap_mail_move($imap_resource, $message_number, $form_state['values']['folder_name'])) {
+      // Report the error.
+      $message = 'There was an error moving message #@message_number.';
+      $message_parameters = array('@message_number' => $message_number);
+      _basic_webmail_report_error($message, $message_parameters, WATCHDOG_ERROR, TRUE);
+      $error++;
+    }
+    else {
+      $message_count++;
+    }
+  }
+
+  if (!imap_expunge($imap_resource)) {
+    include_once drupal_get_path('module', 'basic_webmail') . '/basic_webmail.common.inc';
+    // Report the error.
+    $message = 'There was an error expunging the mailboxes.';
+    _basic_webmail_report_error($message, array(), WATCHDOG_WARNING);
+    $error++;
+  }
+
+  if (empty($error)) {
+    drupal_set_message(t('@message_count messages were successfully moved to @folder_name.', array('@message_count' => $message_count, '@folder_name' => $form_state['values']['folder_name'])));
+  }
+}
+
+/**
+ * Deletes a group of messages.
+ *
+ * @param object $email_message
+ *   The object that the action acts on.
+ * @param array $context
+ *   Additional information about what triggered the action.
+ */
+function basic_webmail_delete_messages_action($email_message, $context) {
+  $error = 0;
+  $message_count = 0;
+
+  include_once drupal_get_path('module', 'basic_webmail') . '/basic_webmail.common.inc';
+  $imap_resource = _basic_webmail_connect_to_server($user_id);
+  if (empty($imap_resource)) {
+    $message = 'There was an error connecting to the mail server. Contact the system administrator and/or check the logs for more information.';
+    _basic_webmail_report_error($message, array(), WATCHDOG_ERROR, TRUE);
+    return;
+  }
+
+  foreach ($messages as $message_number) {
+    if ($form_state['values']['folder'] != 'INBOX.Trash') {
+      if (!imap_mail_move($imap_resource, $message_number, 'INBOX.Trash')) {
+        // Report the error.
+        $message = 'There was an error deleting message #@message_number.';
+        $message_parameters = array('@message_number' => $message_number);
+        _basic_webmail_report_error($message, $message_parameters, WATCHDOG_ERROR, TRUE);
+        $error++;
+      }
+      else {
+        $message_count++;
+      }
+    }
+    else {
+      if (!imap_delete($imap_resource, $message_number)) {
+        // Report the error.
+        $message = 'There was an error deleting message #@message_number.';
+        $message_parameters = array('@message_number' => $message_number);
+        _basic_webmail_report_error($message, $message_parameters, WATCHDOG_ERROR, TRUE);
+        $error++;
+      }
+      else {
+        $message_count++;
+      }
+    }
+  }
+
+  if (!imap_expunge($imap_resource)) {
+    // Report the error.
+    $message = 'There was an error expunging the mailboxes.';
+    _basic_webmail_report_error($message, array(), WATCHDOG_WARNING);
+    $error++;
+  }
+
+  if (empty($error)) {
+    drupal_set_message(t('@message_count messages were successfully deleted.', array('@message_count' => $message_count)));
+  }
+}

@@ -1,0 +1,317 @@
+/* body common classes and structures */
+body {
+    color: #333!important;
+    font-family: 'Open Sans',sans-serif!important;
+    font-size: 12px!important;
+    line-height: 1.5em!important;
+    background: #c8d7de!important;
+}
+a {
+    color: #01ace4;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #000000;
+    text-decoration: none;
+}
+
+p {
+    margin: 0 0 0.8em;
+}
+
+strong {
+    font-weight: 700;
+}
+
+em {
+    font-style: italic;
+}
+
+#page-wrapper {
+    margin: 0 auto;
+    padding: 0;
+    background: none repeat scroll 0 0 #ffffff;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+    width: 1100px;
+    position: relative;
+}
+/*-------------------------------------------*
+/*Headings
+/*-------------------------------------------*/
+h1,
+h2,
+h3,
+h4 {
+    color: #000;
+    font-weight: normal;
+    letter-spacing: 1px;
+    line-height: 1.5em;
+    text-transform: capitalize;
+}
+
+h1 {
+    font-size: 24px;
+    line-height: 1.2em;
+    margin-bottom: 20px;
+}
+
+h2 {
+    font-size: 21px;
+}
+
+h3 {
+    font-size: 18px;
+}
+
+h4 {
+    font-size: 16px;
+}
+
+h2,
+h3 {
+    margin-bottom: 8px;
+    margin-top: 12px;
+}
+
+h1 a,
+h2 a,
+h3 a,
+h4 a {
+    color: #000;
+}
+/*-------------------------------------------*
+/*Header
+/*-------------------------------------------*/
+#header_wrapper {
+    padding: 10px 0 10px;
+    margin: 0 auto 20px;
+    width: 960px;
+}
+
+#header {
+    position: relative;
+    margin: 0 auto;
+    width: 960px;
+    padding-bottom: 20px;
+}
+
+#divider_wrapper {
+    width: 1100px;
+}
+
+#divider {
+    background: url("../images/shadow-bottom.png") no-repeat bottom center;
+    height: 49px;
+    position: absolute;
+    z-index: 999;
+    width: 1100px;
+}
+
+#logo_slogan_wrapper {
+    width: 20%;
+    float: left;
+}
+
+#logo {
+    float: left;
+    padding: 20px 15px 0px 0px;
+}
+
+#sitename {
+    clear: both;
+    padding-left: 5px;
+}
+
+#sitename h2,
+#sitename h1 {
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 1.2em;
+    margin: 0;
+}
+
+#sitename h2 a,
+#sitename h1 a {
+    color: #222;
+    font-size: 28px;
+    text-decoration: none;
+}
+
+#sitename h2 a:hover,
+#sitename h1 a:hover {
+    color: #01ace4;
+}
+
+#sitename p {
+    color: #666;
+    font-size: 12px;
+    font-weight: normal;
+}
+
+/* Social Icons */
+#socialbar {
+    padding-right: 10px;
+    position: absolute;
+    right: -35px;
+    top: 18%;
+    width: 24px;
+}
+
+.front #socialbar .social {
+    position: fixed;
+}
+
+#socialbar .social li {
+    list-style: none outside none;
+}
+
+.social .follow {
+    color: #ffffff;
+    float: right;
+    padding-right: 8px;
+    margin-top: 22px;
+}
+
+#socialbar .social .fb a {
+    background: url("../images/facebook.png") no-repeat scroll center center transparent;
+    display: inline-block;
+    height: 32px;
+    padding: 0 5px 0 0;
+    width: 32px;
+    text-indent: -9999px;
+    font-size: 0px;
+}
+
+#socialbar .social .tw a {
+    background: url("../images/twitter.png") no-repeat scroll center center transparent;
+    display: inline-block;
+    height: 32px;
+    padding: 0 5px 0 0;
+    width: 32px;
+    text-indent: -9999px;
+    font-size: 0px;
+}
+
+#socialbar .social .ln a {
+    background: url("../images/linkedin.png") no-repeat scroll center center transparent;
+    display: inline-block;
+    height: 32px;
+    padding: 0 5px 0 0;
+    width: 32px;
+    text-indent: -9999px;
+    font-size: 0px;
+}
+/*-------------------------------------------*
+/* Menus and item lists
+/*-------------------------------------------*/
+.item-list ul {
+    margin: 0;
+    padding: 0 0 0 1.5385em;
+}
+
+.item-list ul li {
+    margin: 0;
+    padding: 0;
+}
+
+ul.menu li {
+    margin: 0;
+    padding: 0;
+}
+
+ul.inline {
+    clear: both;
+}
+
+ul.inline li {
+    margin: 0;
+    padding: 0;
+}
+/*-------------------------------------------*
+/* Footer
+/*-------------------------------------------*/
+#footer-context {
+    width: 100%;
+    margin-top: 40px;
+}
+
+#footer-context a:hover {
+    color: #01ace4;
+}
+
+.region-footer {
+    margin: 0 auto;
+    width: 960px;
+}
+
+#footer-top {
+    margin: 20px auto 0;
+    width: 960px;
+}
+
+#footer-top .block h2 {
+    border-bottom: 1px solid #01ace4;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+}
+
+#footer-bottom {
+    background: #2d2d2d;
+    padding: 20px;
+    overflow: hidden;
+    color: #fff;
+}
+
+#footer-bottom .block h2 {
+    color: #01ace4;
+}
+
+#footer-bottom .block {
+    float: left;
+    margin: 0px 20px 0 0;
+    padding: 0 0 20px 0;
+    text-align: justify;
+    width: 300px;
+}
+
+.footer-box {
+    float: left;
+    margin-bottom: 20px;
+    margin-right: 20px;
+    padding-right: 20px;
+    width: 100%;
+}
+/*-------------------------------------------*
+/*Copyright
+/*-------------------------------------------*/
+#copyright {
+    font-size: 12px;
+    margin: 0 auto;
+    padding-top: 18px;
+    width: 960px;
+    border-top: 1px solid #01ace4;
+    overflow: hidden;
+}
+
+.developed {
+    float: right;
+}
+/*  Customer phone widget */
+#customers-phone {
+    float: right;
+}
+#customers-phone table td {
+    padding-left: 5px;
+}
+#customers-phone table td label.phone {
+    text-transform: uppercase;
+    color: #01ace4;
+}
+ #customers-phone table td label.title {
+     color: mediumslateblue;
+ }
+#customers-phone table td span.glyphicon {
+    color: #01ace4;
+}

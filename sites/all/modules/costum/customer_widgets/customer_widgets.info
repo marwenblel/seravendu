@@ -1,0 +1,7 @@
+name = Customer widgets
+description = A module that prepares a customer widgets to display into the site.
+core = 7.x
+package = Custom Dev
+
+files[] = customer_widgets.install
+files[] = customer_widgets.module

@@ -1,0 +1,155 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the Basic webmail module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function basic_webmail_schema() {
+  $schema = array();
+
+  $schema['basic_webmail_messages'] = array(
+    'fields' => array(
+      'user_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'description' => 'The user to whom this message belongs.',
+      ),
+      'message_number' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'description' => 'The message id.',
+      ),
+      'message_subject' => array(
+        'type' => 'varchar',
+        'length' => 256,
+        'not null' => FALSE,
+        'description' => 'The subject of the message.',
+      ),
+      'from_address' => array(
+        'type' => 'varchar',
+        'length' => 256,
+        'not null' => FALSE,
+        'description' => 'The email address of who the message is from.',
+      ),
+      'from_persona' => array(
+        'type' => 'varchar',
+        'length' => 256,
+        'not null' => FALSE,
+        'description' => 'The displayed name of who the message is from.',
+      ),
+      'message_date' => array(
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+        'description' => 'When the message was sent.',
+      ),
+      'message_unread' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'description' => 'TRUE if the message is unread.',
+      ),
+      'attachment_exists' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'description' => 'TRUE if there are any attachments.',
+      ),
+      'message_answered' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'description' => 'TRUE if the message was replied to.',
+      ),
+      'folder_name' => array(
+        'type' => 'varchar',
+        'length' => 256,
+        'not null' => FALSE,
+        'description' => 'The name of the folder the message is in.',
+      ),
+    ),
+    'description' => 'This is a temporary holding place for the basic information of the e-mail messages. This is used for the message listing.',
+  );
+
+  $schema['basic_webmail_folders'] = basic_webmail_schema_update();
+
+  return $schema;
+}
+
+
+/**
+ *
+ * @return string
+ */
+function basic_webmail_schema_update() {
+  return array(
+    'fields' => array(
+      'fid' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'The primary identifier for the folder.',
+      ),
+      'user_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'The user to whom this folder belongs.',
+      ),
+      'folder_name' => array(
+        'type' => 'varchar',
+        'length' => 256,
+        'not null' => TRUE,
+        'description' => 'The name of the folder.',
+      ),
+      'last_checked' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Timestamp for when this folder was last checked for new messages.',
+      ),
+    ),
+    'primary key' => array('fid'),
+    'description' => 'The folders where the messages are stored.',
+  );
+}
+
+
+/**
+ * Implements hook_uninstall().
+ */
+function basic_webmail_uninstall() {
+  db_delete('variable')
+    ->condition('name', 'basic_webmail_%', 'LIKE')
+    ->execute();
+}
+
+
+/**
+ * Expanding the sender information and adding separate folder functionality.
+ */
+function basic_webmail_update_7200(&$sandbox) {
+  db_add_field('basic_webmail_messages', 'from_persona', array(
+    'type' => 'varchar',
+    'length' => 256,
+    'not null' => FALSE,
+    'description' => 'The displayed name of who the message is from.',
+  ));
+
+  db_add_field('basic_webmail_messages', 'folder_name', array(
+    'type' => 'varchar',
+    'length' => 256,
+    'not null' => FALSE,
+    'description' => 'The name of the folder the message is in.',
+  ));
+
+  db_create_table('basic_webmail_folders', basic_webmail_schema_update());
+}
